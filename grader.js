@@ -43,25 +43,17 @@ var assertFileExists = function(infile) {
 };
 
 var cheerioHtmlFile = function(htmlfile) {
-    a=fs.readFileSync(htmlfile).toString();
-    
-    console.log(a);
-    
-    return cheerio.load(a);
-//    return cheerio.load(fs.readFileSync(htmlfile));
+    return cheerio.load(fs.readFileSync(htmlfile));
 };
 
 var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
 };
 
-var getUrlText = function(url) {
-    a=restler.get(url).on('complete', function(result) { console.log(result); return result });
-//    return c;
-};
 
-var cheerioUrl = function(url) {
-    return cheerio.load(getUrlText(url));
+var cheerioUrl = function(result) {
+    return cheerio.load(result)
+
 }
 
 var checkHtmlFile = function(htmlfile, checksfile, file_or_url) {
@@ -94,18 +86,24 @@ if(require.main == module) {
         .option('-u, --url <url_file>', 'Path to URL input')
         .parse(process.argv);
 
-    if (program.file)
+    if (program.file){
 	var checkJson = checkHtmlFile(program.file, program.checks, IS_FILE);
-    else if (program.url)
-	var checkJson = checkHtmlFile(program.url, program.checks, IS_URL);
+	var outJson = JSON.stringify(checkJson, null, 4);
+	console.log(outJson); 
+	}
+    else if (program.url) 
+	restler.get(program.url).on('complete', function(result) {
+            var checkJson = checkHtmlFile(result, program.checks, IS_URL);
+            var outJson = JSON.stringify(checkJson, null, 4);
+	    console.log(outJson); 
+	});
     else {
 	console.log("Need to specify a file or a URL");
 	process.exit(1);
 	
     }
 
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson); 
+    
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
