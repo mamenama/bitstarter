@@ -30,6 +30,8 @@ var restler = require('restler');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
 var URL_DEFAULT = "http://www.google.com";
+var IS_FILE = 0;
+var IS_URL = 1;
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -41,26 +43,35 @@ var assertFileExists = function(infile) {
 };
 
 var cheerioHtmlFile = function(htmlfile) {
-    return cheerio.load(fs.readFileSync(htmlfile));
+    a=fs.readFileSync(htmlfile).toString();
+    
+    console.log(a);
+    
+    return cheerio.load(a);
+//    return cheerio.load(fs.readFileSync(htmlfile));
 };
 
 var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
 };
 
+var getUrlText = function(url) {
+    a=restler.get(url).on('complete', function(result) { console.log(result); return result });
+//    return c;
+};
+
 var cheerioUrl = function(url) {
-    return cheerio.load(restler.get('http://limitless-headland-9439.herokuapp.com/').on('complete', function(result) {
-  if (result instanceof Error) {
-    sys.puts('Error: ' + result.message);
-    this.retry(5000); // try again after 5 sec
-  } else {
-    sys.puts(result);
-  }
-}));
+    return cheerio.load(getUrlText(url));
 }
 
-var checkHtmlFile = function(htmlfile, checksfile) {
-    $ = cheerioHtmlFile(htmlfile);
+var checkHtmlFile = function(htmlfile, checksfile, file_or_url) {
+    if (file_or_url == IS_FILE) {
+	$ = cheerioHtmlFile(htmlfile);
+    }
+    else if (file_or_url == IS_URL) {
+	$ = cheerioUrl(htmlfile);
+    }
+
     var checks = loadChecks(checksfile).sort();
     var out = {};
     for(var ii in checks) {
@@ -79,12 +90,22 @@ var clone = function(fn) {
 if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
-        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-        .option('-u, --url <url_file>', 'Path to URL input', URL_DEFAULT)
+        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists))
+        .option('-u, --url <url_file>', 'Path to URL input')
         .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
+
+    if (program.file)
+	var checkJson = checkHtmlFile(program.file, program.checks, IS_FILE);
+    else if (program.url)
+	var checkJson = checkHtmlFile(program.url, program.checks, IS_URL);
+    else {
+	console.log("Need to specify a file or a URL");
+	process.exit(1);
+	
+    }
+
     var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
+    console.log(outJson); 
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
